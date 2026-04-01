@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # API Server & LangGraph Worker
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/sales_db
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - postgres
+      - ollama
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # PostgreSQL cho Checkpointer & Lưu trữ Lead
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sales_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Ollama Server (Host local LLM cho các tác vụ Extraction)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Chạy lệnh này thủ công sau khi container up để pull model:
+    # docker exec -it ollama ollama run llama3
+
+volumes:
+  postgres_data:
+  ollama_data:
