@@ -1,6 +1,8 @@
 # app/api/routes.py
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from app.api.dependencies import get_product_rag_service
+from app.services.rag_service import ProductRAGService
 
 router = APIRouter(prefix="/api", tags=["Agent Operations"])
 
@@ -16,6 +18,11 @@ class ApprovalRequest(BaseModel):
     thread_id: str
     action: str  # "approve" or "reject"
     feedback: str = ""
+
+
+class ProductQueryRequest(BaseModel):
+    query: str
+    top_k: int | None = None
 
 
 # --- Routes ---
@@ -71,3 +78,16 @@ async def approve_email(payload: ApprovalRequest, request: Request):
         return {"message": "Email rejected. Sent back to Copywriter.", "status": result}
 
     raise HTTPException(status_code=400, detail="Invalid action. Use 'approve' or 'reject'.")
+
+
+@router.post("/rag/products/query")
+async def query_product_catalog(
+    payload: ProductQueryRequest,
+    rag_service: ProductRAGService = Depends(get_product_rag_service)
+):
+    """Queries the ChromaDB `stock_market` collection for products, prices, and promotions."""
+    result = await rag_service.answer_product_question(
+        question=payload.query,
+        top_k=payload.top_k
+    )
+    return result
